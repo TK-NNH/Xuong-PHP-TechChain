@@ -50,26 +50,36 @@ class CartController extends Controller
         return view('cart', compact('totalAmount', 'productVariants', 'userId'));
     }
     public function add(Request $request) {
-//        dd($request->all());
-        // lấy taạm thông tin 1 tài khoản
-        $user = User::query()->first();
-//        dd($user);
-        $cart = Cart::query()->where('user_id', $user->id)->first();
-        // nếu chuwa có giỏ hàng thì tạo mới giỏ hàng
-        if (empty($cart)) {
-            $cart = Cart::query()->create(['user_id'=>$user->id]);
+        // Kiểm tra nếu người dùng chưa đăng nhập
+        if (!Auth::check()) {
+            return redirect()->route('login')->with('error', 'Bạn cần phải đăng nhập để thêm sản phẩm vào giỏ hàng.');
         }
+
+        // Lấy thông tin người dùng đang đăng nhập
+        $user = Auth::user();
+
+        // Tìm giỏ hàng của người dùng
+        $cart = Cart::query()->where('user_id', $user->id)->first();
+
+        // Nếu chưa có giỏ hàng thì tạo mới giỏ hàng
+        if (empty($cart)) {
+            $cart = Cart::query()->create(['user_id' => $user->id]);
+        }
+
+        // Tìm sản phẩm theo biến thể
         $productVariant = ProductVariant::query()->where([
             'product_id' => $request->product_id,
             'product_size_id' => $request->product_size_id,
             'product_color_id' => $request->product_color_id
         ])->first();
+
         $data = [
             'product_variant_id' => $productVariant->id,
             'cart_id' => $cart->id,
             'quantity' => $request->quantity
         ];
-        // kiểm tra nếu trong giỏ hàng đã có product_variant_id thì cộng dồn số lượng
+
+        // Kiểm tra nếu trong giỏ hàng đã có product_variant_id thì cộng dồn số lượng
         $cartItem = CartItem::query()->where('product_variant_id', $productVariant->id)->first();
         if (empty($cartItem)) {
             CartItem::query()->create($data);
@@ -77,6 +87,8 @@ class CartController extends Controller
             $data['quantity'] += $cartItem->quantity;
             $cartItem->update(['quantity' => $data['quantity']]);
         }
+
         return redirect()->route('cart.list');
     }
+
 }
